@@ -1,0 +1,6 @@
+{
+  "name": "ZYXO زیکسو",
+  "description": "استودیو هوش مصنوعی پیشرفته زیکسو (ZYXO) با قدرت مدل‌های جمینای ۳.۵ و وئو ۳، چت هوشمند، استودیو تصویر 4K، تولید ویدیو و ابزارهای تحلیل محتوا.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
