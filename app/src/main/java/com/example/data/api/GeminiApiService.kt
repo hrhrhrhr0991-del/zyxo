@@ -49,8 +49,6 @@ interface GeminiApiService {
 }
 
 object RetrofitClient {
-    private const val BASE_URL = "https://generativelanguage.googleapis.com/"
-
     private val moshi: Moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())
         .build()
@@ -66,20 +64,26 @@ object RetrofitClient {
         .addInterceptor(loggingInterceptor)
         .build()
 
-    val geminiService: GeminiApiService by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .client(okHttpClient)
-            .addConverterFactory(MoshiConverterFactory.create(moshi))
-            .build()
-            .create(GeminiApiService::class.java)
-    }
+    private var currentBaseUrl: String? = null
+    private var cachedService: GeminiApiService? = null
+
+    val geminiService: GeminiApiService
+        @Synchronized
+        get() {
+            val targetBaseUrl = ApiConfigManager.getBaseUrl()
+            if (cachedService == null || currentBaseUrl != targetBaseUrl) {
+                currentBaseUrl = targetBaseUrl
+                cachedService = Retrofit.Builder()
+                    .baseUrl(targetBaseUrl)
+                    .client(okHttpClient)
+                    .addConverterFactory(MoshiConverterFactory.create(moshi))
+                    .build()
+                    .create(GeminiApiService::class.java)
+            }
+            return cachedService!!
+        }
 
     fun getApiKey(): String {
-        return try {
-            BuildConfig.GEMINI_API_KEY
-        } catch (e: Exception) {
-            ""
-        }
+        return ApiConfigManager.getApiKey()
     }
 }

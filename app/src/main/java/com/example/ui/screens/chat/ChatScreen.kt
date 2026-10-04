@@ -43,9 +43,12 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
+import com.example.ui.components.ApiSettingsBottomSheet
 import com.example.ui.components.MarkdownContent
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -55,6 +58,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -112,6 +116,7 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     var inputText by remember { mutableStateOf("") }
     var copiedMessageId by remember { mutableStateOf<Long?>(null) }
+    var isApiSettingsOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
@@ -159,6 +164,16 @@ fun ChatScreen(
                     badgeText = "زیکسو",
                     trailingContent = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = { isApiSettingsOpen = true },
+                                modifier = Modifier.testTag("chat_settings_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "تنظیمات API و رفع تحریم",
+                                    tint = CyanSpark
+                                )
+                            }
                             IconButton(
                                 onClick = { viewModel.toggleSessionsDrawer(true) },
                                 modifier = Modifier.testTag("chat_history_button")
@@ -347,6 +362,7 @@ fun ChatScreen(
                                 message = msg,
                                 isCopied = copiedMessageId == msg.id,
                                 isStreaming = uiState.isGenerating && isLast && msg.role != "user",
+                                onOpenSettings = { isApiSettingsOpen = true },
                                 onCopy = {
                                     coroutineScope.launch {
                                         copiedMessageId = msg.id
@@ -798,6 +814,10 @@ fun ChatScreen(
             }
         }
     }
+
+    if (isApiSettingsOpen) {
+        ApiSettingsBottomSheet(onDismissRequest = { isApiSettingsOpen = false })
+    }
 }
 
 @Composable
@@ -805,6 +825,7 @@ fun ChatMessageItem(
     message: ChatMessageEntity,
     isCopied: Boolean,
     isStreaming: Boolean = false,
+    onOpenSettings: () -> Unit = {},
     onCopy: () -> Unit
 ) {
     val isUser = message.role == "user"
@@ -908,6 +929,27 @@ fun ChatMessageItem(
                             isStreaming = isStreaming
                         )
                     }
+                }
+            }
+
+            if (message.isError) {
+                OutlinedButton(
+                    onClick = onOpenSettings,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = CyanSpark),
+                    modifier = Modifier.padding(top = 6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "تنظیمات API و راهنمای رفع تحریم ۴۰۳",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 

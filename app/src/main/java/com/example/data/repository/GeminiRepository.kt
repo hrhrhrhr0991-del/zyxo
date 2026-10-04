@@ -440,28 +440,60 @@ class GeminiRepository {
         )
     }
 
-    private fun parseErrorMessage(errorBody: String?, statusCode: Int): String {
-        if (errorBody.isNullOrBlank()) {
-            return when (statusCode) {
-                400 -> "درخواست ارسال‌شده نامعتبر است."
-                401, 403 -> "کلید API نامعتبر است یا دسترسی به این مدل وجود ندارد."
-                404 -> "مدل مورد نظر در دسترس سرور نیست یا آدرس نامعتبر است."
-                429 -> "سقف مجاز درخواست‌ها (Quota) پر شده است. لطفاً کمی بعد تلاش کنید."
-                500, 503 -> "سرور هوش مصنوعی موقتاً پاسخگو نیست. لطفاً مجدداً امتحان کنید."
-                else -> "خطای ارتباط با شبکه (کد $statusCode)"
-            }
+    suspend fun testConnection(): Result<String> = withContext(Dispatchers.IO) {
+        val apiKey = RetrofitClient.getApiKey()
+        if (apiKey.isBlank()) {
+            return@withContext Result.failure(Exception("کلید API وارد نشده است. لطفاً کلید اختصاصی خود را در بخش تنظیمات وارد نمایید."))
         }
-        return try {
-            val json = JSONObject(errorBody)
-            if (json.has("error")) {
-                val errorObj = json.getJSONObject("error")
-                val msg = errorObj.optString("message", "")
-                if (msg.isNotBlank()) msg else "خطای سرور (کد $statusCode)"
+        try {
+            val response = apiService.generateContent(
+                model = GeminiModelConstants.GEMINI_3_1_FLASH_LITE,
+                apiKey = apiKey,
+                request = GenerateContentRequest(
+                    contents = listOf(Content(parts = listOf(Part(text = "OK")))),
+                    generationConfig = GenerationConfig(temperature = 0.1f)
+                )
+            )
+            if (response.isSuccessful) {
+                Result.success("اتصال موفقیت‌آمیز است! ارتباط با هوش مصنوعی برقرار است.")
             } else {
-                errorBody
+                val errorBody = response.errorBody()?.string()
+                Result.failure(Exception(parseErrorMessage(errorBody, response.code())))
             }
         } catch (e: Exception) {
-            "خطای پردازش ($statusCode)"
+            Result.failure(Exception("خطا در برقراری ارتباط با شبکه: ${e.localizedMessage ?: "لطفاً اتصال اینترنت یا فیلترشکن را بررسی کنید."}"))
+        }
+    }
+
+    private fun parseErrorMessage(errorBody: String?, statusCode: Int): String {
+        val rawMsg = if (!errorBody.isNullOrBlank()) {
+            try {
+                val json = JSONObject(errorBody)
+                val errObj = json.optJSONObject("error")
+                errObj?.optString("message", "") ?: errorBody
+            } catch (e: Exception) {
+                errorBody
+            }
+        } else ""
+
+        return when {
+            rawMsg.contains("location is not supported", ignoreCase = true) || (statusCode == 403 && rawMsg.contains("location", ignoreCase = true)) -> {
+                "⚠️ ارور ۴۰۳ (تحریم گوگل):\nسرور گوگل به دلیل تحریم، آی‌پی ایران را مسدود کرده است.\nراه حل: فیلترشکن (VPN) با آی‌پی اروپا یا آمریکا را روشن کنید یا از DNSهای ضدتحریم (مانند شکن) استفاده نمایید."
+            }
+            rawMsg.contains("API key not valid", ignoreCase = true) || rawMsg.contains("unregistered callers", ignoreCase = true) || (statusCode == 400 && rawMsg.contains("key", ignoreCase = true)) -> {
+                "🔑 ارور کلید API:\nکلید Gemini API وارد نشده یا منقضی شده است. از طریق آیکون تنظیمات ⚙️ در بالای صفحه، کلید رایگان خود را وارد کنید."
+            }
+            statusCode == 403 -> {
+                "⚠️ ارور دسترسی ۴۰۳:\nارتباط توسط سرور رد شد. لطفاً فیلترشکن را فعال کرده و وضعیت کلید API را در تنظیمات ⚙️ بررسی فرمایید."
+            }
+            statusCode == 429 || rawMsg.contains("quota", ignoreCase = true) || rawMsg.contains("RESOURCE_EXHAUSTED", ignoreCase = true) -> {
+                "⏳ محدودیت ترافیک (Quota):\nسقف مجاز درخواست‌ها پر شده است. لطفاً چند لحظه بعد تلاش کنید."
+            }
+            statusCode == 503 || statusCode == 500 || rawMsg.contains("demand", ignoreCase = true) || rawMsg.contains("UNAVAILABLE", ignoreCase = true) -> {
+                "⚡ سرور جمینای در حال حاضر شلوغ است. مدل پشتیبان در حال تلاش مجدد است..."
+            }
+            rawMsg.isNotBlank() -> rawMsg
+            else -> "خطای ارتباط با سرور (کد $statusCode). لطفاً اتصال اینترنت و فیلترشکن خود را بررسی نمایید."
         }
     }
 }
