@@ -8,6 +8,7 @@ import com.example.data.api.Content
 import com.example.data.api.GeminiModelConstants
 import com.example.data.api.InlineData
 import com.example.data.api.Part
+import com.example.data.engine.ZyxoAntiSanctionEngine
 import com.example.data.local.AppDatabase
 import com.example.data.local.ChatMessageEntity
 import com.example.data.local.ChatSessionEntity
@@ -373,26 +374,55 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     _uiState.value = _uiState.value.copy(isGenerating = false)
                     updateCurrentSessionHeader()
                 },
-                onFailure = { error ->
+                onFailure = { _ ->
                     if (accumulatedText.isNotEmpty()) {
                         val finalModelMsg = inProgressModelMsg.copy(content = accumulatedText.toString())
                         localRepo.saveMessage(finalModelMsg)
                         _uiState.value = _uiState.value.copy(isGenerating = false)
                     } else {
-                        val errorText = error.message ?: "خطا در ارتباط با سرور هوش مصنوعی"
-                        val errorMessage = inProgressModelMsg.copy(
-                            content = "⚠️ $errorText\n\n💡 اگر در ایران هستید، حتماً فیلترشکن (VPN) خود را روشن کنید تا تحریم گوگل برطرف شود و مجدداً تلاش کنید.",
-                            isError = true
-                        )
+                        // Bypass sanctions and connect directly to high-speed AI without VPN or key!
                         viewModelScope.launch {
-                            val insertedErrorId = localRepo.saveMessage(errorMessage)
-                            val persistedErrorMsg = errorMessage.copy(id = insertedErrorId)
-                            _messages.value = _messages.value.mapIndexed { idx, msg ->
-                                if (idx == _messages.value.lastIndex) persistedErrorMsg else msg
+                            val antiSanctionResult = ZyxoAntiSanctionEngine.streamText(
+                                prompt = userText,
+                                systemPrompt = systemPrompt
+                            ) { chunk ->
+                                accumulatedText.append(chunk)
+                                _messages.value = _messages.value.mapIndexed { idx, msg ->
+                                    if (idx == _messages.value.lastIndex) {
+                                        msg.copy(content = accumulatedText.toString(), isError = false)
+                                    } else msg
+                                }
                             }
-                            _uiState.value = _uiState.value.copy(
-                                isGenerating = false,
-                                errorMessage = error.message
+
+                            antiSanctionResult.fold(
+                                onSuccess = {
+                                    val finalContent = accumulatedText.toString().ifBlank { "پاسخی دریافت نشد." }
+                                    val finalModelMsg = inProgressModelMsg.copy(content = finalContent, isError = false)
+                                    val insertedModelId = localRepo.saveMessage(finalModelMsg)
+                                    val persistedModelMsg = finalModelMsg.copy(id = insertedModelId)
+
+                                    _messages.value = _messages.value.mapIndexed { idx, msg ->
+                                        if (idx == _messages.value.lastIndex) persistedModelMsg else msg
+                                    }
+                                    _uiState.value = _uiState.value.copy(isGenerating = false, errorMessage = null)
+                                    updateCurrentSessionHeader()
+                                },
+                                onFailure = { secError ->
+                                    val errorMsg = "⚠️ خطا در برقراری ارتباط با اینترنت. لطفاً اتصال اینترنت گوشی خود را بررسی نمایید."
+                                    val errorMessage = inProgressModelMsg.copy(
+                                        content = errorMsg,
+                                        isError = true
+                                    )
+                                    val insertedErrorId = localRepo.saveMessage(errorMessage)
+                                    val persistedErrorMsg = errorMessage.copy(id = insertedErrorId)
+                                    _messages.value = _messages.value.mapIndexed { idx, msg ->
+                                        if (idx == _messages.value.lastIndex) persistedErrorMsg else msg
+                                    }
+                                    _uiState.value = _uiState.value.copy(
+                                        isGenerating = false,
+                                        errorMessage = secError.message
+                                    )
+                                }
                             )
                         }
                     }
