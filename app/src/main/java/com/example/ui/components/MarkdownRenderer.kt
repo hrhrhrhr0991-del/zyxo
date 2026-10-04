@@ -126,21 +126,21 @@ private fun HeaderView(block: MarkdownBlock.Header, isUser: Boolean) {
     val baseColor = if (isUser) Color.White else MaterialTheme.colorScheme.primary
 
     val (style, topPadding) = when (block.level) {
-        1 -> MaterialTheme.typography.titleLarge.copy(
+        1 -> MaterialTheme.typography.titleMedium.copy(
             fontWeight = FontWeight.Bold,
-            fontSize = 21.sp,
-            lineHeight = 32.sp
-        ) to 10.dp
-        2 -> MaterialTheme.typography.titleMedium.copy(
-            fontWeight = FontWeight.Bold,
-            fontSize = 19.sp,
-            lineHeight = 28.sp
-        ) to 8.dp
-        else -> MaterialTheme.typography.titleSmall.copy(
-            fontWeight = FontWeight.Bold,
-            fontSize = 17.sp,
-            lineHeight = 26.sp
+            fontSize = 16.sp,
+            lineHeight = 24.sp
         ) to 6.dp
+        2 -> MaterialTheme.typography.titleSmall.copy(
+            fontWeight = FontWeight.Bold,
+            fontSize = 15.sp,
+            lineHeight = 22.sp
+        ) to 5.dp
+        else -> MaterialTheme.typography.titleSmall.copy(
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp,
+            lineHeight = 20.sp
+        ) to 4.dp
     }
 
     Column(modifier = Modifier.padding(top = topPadding, bottom = 2.dp)) {
@@ -150,12 +150,12 @@ private fun HeaderView(block: MarkdownBlock.Header, isUser: Boolean) {
         ) {
             Box(
                 modifier = Modifier
-                    .width(4.dp)
-                    .height(if (block.level == 1) 22.dp else 18.dp)
+                    .width(3.dp)
+                    .height(if (block.level == 1) 16.dp else 13.dp)
                     .clip(RoundedCornerShape(2.dp))
                     .background(if (isUser) Color.White.copy(alpha = 0.7f) else CyanSpark)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = renderInlineStyles(block.text, isUser),
                 style = style,
@@ -169,7 +169,10 @@ private fun HeaderView(block: MarkdownBlock.Header, isUser: Boolean) {
 private fun ParagraphView(text: String, isUser: Boolean) {
     Text(
         text = renderInlineStyles(text, isUser),
-        style = MaterialTheme.typography.bodyLarge,
+        style = MaterialTheme.typography.bodyMedium.copy(
+            fontSize = 14.sp,
+            lineHeight = 22.sp
+        ),
         color = if (isUser) Color.White else MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.fillMaxWidth()
     )
@@ -180,20 +183,23 @@ private fun BulletItemView(text: String, isUser: Boolean) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 4.dp, top = 2.dp, bottom = 2.dp),
+            .padding(start = 2.dp, top = 2.dp, bottom = 2.dp),
         verticalAlignment = Alignment.Top
     ) {
         Box(
             modifier = Modifier
                 .padding(top = 8.dp)
-                .size(6.dp)
+                .size(5.dp)
                 .clip(CircleShape)
                 .background(if (isUser) Color.White else CyanSpark)
         )
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = renderInlineStyles(text, isUser),
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontSize = 14.sp,
+                lineHeight = 22.sp
+            ),
             color = if (isUser) Color.White else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f)
         )
@@ -211,7 +217,7 @@ private fun NumberedItemView(number: String, text: String, isUser: Boolean) {
         Box(
             modifier = Modifier
                 .padding(top = 2.dp)
-                .size(20.dp)
+                .size(18.dp)
                 .clip(CircleShape)
                 .background(
                     if (isUser) Color.White.copy(alpha = 0.25f)
@@ -221,15 +227,18 @@ private fun NumberedItemView(number: String, text: String, isUser: Boolean) {
         ) {
             Text(
                 text = number,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                 fontWeight = FontWeight.Bold,
                 color = if (isUser) Color.White else MaterialTheme.colorScheme.primary
             )
         }
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = renderInlineStyles(text, isUser),
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontSize = 14.sp,
+                lineHeight = 22.sp
+            ),
             color = if (isUser) Color.White else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f)
         )

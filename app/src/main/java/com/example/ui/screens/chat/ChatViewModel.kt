@@ -8,7 +8,6 @@ import com.example.data.api.Content
 import com.example.data.api.GeminiModelConstants
 import com.example.data.api.InlineData
 import com.example.data.api.Part
-import com.example.data.engine.ZyxoSmartEngine
 import com.example.data.local.AppDatabase
 import com.example.data.local.ChatMessageEntity
 import com.example.data.local.ChatSessionEntity
@@ -380,46 +379,21 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         localRepo.saveMessage(finalModelMsg)
                         _uiState.value = _uiState.value.copy(isGenerating = false)
                     } else {
-                        // Fallback to internal smart engine so the user NEVER gets stuck or sees errors!
+                        val errorText = error.message ?: "خطا در ارتباط با سرور هوش مصنوعی"
+                        val errorMessage = inProgressModelMsg.copy(
+                            content = "⚠️ $errorText\n\n💡 اگر در ایران هستید، حتماً فیلترشکن (VPN) خود را روشن کنید تا تحریم گوگل برطرف شود و مجدداً تلاش کنید.",
+                            isError = true
+                        )
                         viewModelScope.launch {
-                            val fallbackText = StringBuilder()
-                            try {
-                                ZyxoSmartEngine.streamSmartResponse(
-                                    prompt = userText,
-                                    persona = _uiState.value.selectedPersona
-                                ) { chunk ->
-                                    fallbackText.append(chunk)
-                                    _messages.value = _messages.value.mapIndexed { idx, msg ->
-                                        if (idx == _messages.value.lastIndex) {
-                                            msg.copy(content = fallbackText.toString(), isError = false)
-                                        } else msg
-                                    }
-                                }
-                                val finalFallbackMsg = inProgressModelMsg.copy(
-                                    content = fallbackText.toString(),
-                                    isError = false
-                                )
-                                val insertedId = localRepo.saveMessage(finalFallbackMsg)
-                                _messages.value = _messages.value.mapIndexed { idx, msg ->
-                                    if (idx == _messages.value.lastIndex) finalFallbackMsg.copy(id = insertedId) else msg
-                                }
-                                _uiState.value = _uiState.value.copy(isGenerating = false, errorMessage = null)
-                                updateCurrentSessionHeader()
-                            } catch (e: Exception) {
-                                val errorMessage = inProgressModelMsg.copy(
-                                    content = "⚠️ ${error.message ?: "خطا در برقراری ارتباط"}",
-                                    isError = true
-                                )
-                                val insertedErrorId = localRepo.saveMessage(errorMessage)
-                                val persistedErrorMsg = errorMessage.copy(id = insertedErrorId)
-                                _messages.value = _messages.value.mapIndexed { idx, msg ->
-                                    if (idx == _messages.value.lastIndex) persistedErrorMsg else msg
-                                }
-                                _uiState.value = _uiState.value.copy(
-                                    isGenerating = false,
-                                    errorMessage = error.message
-                                )
+                            val insertedErrorId = localRepo.saveMessage(errorMessage)
+                            val persistedErrorMsg = errorMessage.copy(id = insertedErrorId)
+                            _messages.value = _messages.value.mapIndexed { idx, msg ->
+                                if (idx == _messages.value.lastIndex) persistedErrorMsg else msg
                             }
+                            _uiState.value = _uiState.value.copy(
+                                isGenerating = false,
+                                errorMessage = error.message
+                            )
                         }
                     }
                 }

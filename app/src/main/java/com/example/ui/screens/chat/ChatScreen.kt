@@ -151,6 +151,7 @@ fun ChatScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Column(
@@ -247,7 +248,7 @@ fun ChatScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(top = paddingValues.calculateTopPadding())
                 .imePadding()
         ) {
             // Messages List
@@ -856,7 +857,7 @@ fun ChatMessageItem(
         }
 
         Column(
-            modifier = Modifier.widthIn(max = 340.dp),
+            modifier = Modifier.fillMaxWidth(0.88f),
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
         ) {
             if (!message.imageBase64.isNullOrBlank()) {
@@ -919,7 +920,10 @@ fun ChatMessageItem(
                     if (isUser) {
                         Text(
                             text = message.content,
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontSize = 14.5.sp,
+                                lineHeight = 22.sp
+                            ),
                             color = Color.White
                         )
                     } else {
