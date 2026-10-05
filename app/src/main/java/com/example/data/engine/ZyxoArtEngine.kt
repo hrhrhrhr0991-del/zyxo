@@ -5,15 +5,13 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.Rect
-import android.graphics.RectF
 import android.graphics.Shader
 import android.util.Base64
 import java.io.ByteArrayOutputStream
 import java.util.Locale
-import kotlin.math.cos
-import kotlin.math.sin
 import kotlin.random.Random
 
 object ZyxoArtEngine {
@@ -37,46 +35,36 @@ object ZyxoArtEngine {
         val canvas = Canvas(bitmap)
         val p = prompt.lowercase(Locale.ROOT)
 
-        // Palette selection based on style and prompt
         val (c1, c2, c3, highlightColor) = when {
-            styleName.contains("سایبرپانک", ignoreCase = true) || p.contains("cyberpunk") || p.contains("نئون") -> {
+            p.contains("سایبر") || p.contains("نئون") || styleName.contains("سایبرپانک") -> {
                 listOf(
-                    Color.rgb(10, 10, 25),
-                    Color.rgb(26, 0, 51),
-                    Color.rgb(0, 51, 102),
-                    Color.rgb(0, 240, 255)
+                    Color.rgb(10, 10, 26),
+                    Color.rgb(38, 14, 68),
+                    Color.rgb(13, 31, 74),
+                    Color.rgb(6, 182, 212)
                 )
             }
-            styleName.contains("انیمه", ignoreCase = true) || p.contains("anime") || p.contains("ژاپنی") -> {
+            p.contains("طبیعت") || p.contains("جنگل") || p.contains("nature") -> {
                 listOf(
-                    Color.rgb(240, 147, 251),
-                    Color.rgb(245, 87, 108),
-                    Color.rgb(65, 88, 208),
-                    Color.rgb(255, 255, 255)
+                    Color.rgb(15, 28, 20),
+                    Color.rgb(20, 50, 35),
+                    Color.rgb(34, 80, 55),
+                    Color.rgb(74, 222, 128)
                 )
             }
-            styleName.contains("آبرنگ", ignoreCase = true) || p.contains("نقاشی") || p.contains("طبیعت") -> {
+            p.contains("غروب") || p.contains("sunset") || styleName.contains("آبرنگ") -> {
                 listOf(
-                    Color.rgb(15, 76, 92),
-                    Color.rgb(227, 100, 20),
-                    Color.rgb(251, 139, 36),
-                    Color.rgb(224, 251, 252)
-                )
-            }
-            styleName.contains("سه بعدی", ignoreCase = true) || p.contains("3d") || p.contains("رندر") -> {
-                listOf(
-                    Color.rgb(20, 20, 35),
-                    Color.rgb(79, 70, 229),
-                    Color.rgb(124, 58, 237),
-                    Color.rgb(244, 63, 94)
+                    Color.rgb(40, 10, 30),
+                    Color.rgb(120, 35, 60),
+                    Color.rgb(220, 80, 60),
+                    Color.rgb(251, 191, 36)
                 )
             }
             else -> {
-                // Cinematic Photorealistic
                 listOf(
-                    Color.rgb(12, 14, 28),
-                    Color.rgb(30, 27, 75),
-                    Color.rgb(67, 56, 202),
+                    Color.rgb(8, 12, 30),
+                    Color.rgb(25, 28, 65),
+                    Color.rgb(45, 60, 120),
                     Color.rgb(56, 189, 248)
                 )
             }
@@ -84,95 +72,112 @@ object ZyxoArtEngine {
 
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-        // 1. Draw Base Background Gradient
+        // 1. Sky & Atmosphere Gradient
         val bgShader = LinearGradient(
-            0f, 0f, width.toFloat(), height.toFloat(),
+            0f, 0f, 0f, height.toFloat(),
             intArrayOf(c1, c2, c3),
-            floatArrayOf(0f, 0.5f, 1f),
+            floatArrayOf(0f, 0.45f, 1f),
             Shader.TileMode.CLAMP
         )
         paint.shader = bgShader
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
 
-        // 2. If sourceBitmap provided (Edit mode), draw and blend it
+        // 2. Source image overlay if editing
         if (sourceBitmap != null) {
             val destRect = Rect(0, 0, width, height)
             val srcRect = Rect(0, 0, sourceBitmap.width, sourceBitmap.height)
-            paint.alpha = 180
+            paint.alpha = 200
             canvas.drawBitmap(sourceBitmap, srcRect, destRect, paint)
             paint.alpha = 255
         }
 
-        // 3. Draw Atmospheric Glowing Radial Orbs
+        // 3. Glowing Celestial Body (Sun/Moon/Core)
         paint.shader = null
-        val seed = prompt.hashCode().toLong()
-        val random = Random(seed)
+        val celestialX = width * 0.72f
+        val celestialY = height * 0.32f
+        val celestialRadius = width * 0.14f
 
-        for (i in 0..4) {
-            val cx = random.nextFloat() * width
-            val cy = random.nextFloat() * height
-            val radius = (random.nextFloat() * 0.4f + 0.2f) * width
+        val glowShader = RadialGradient(
+            celestialX, celestialY, celestialRadius * 2.2f,
+            intArrayOf(highlightColor, Color.argb(80, Color.red(highlightColor), Color.green(highlightColor), Color.blue(highlightColor)), Color.TRANSPARENT),
+            floatArrayOf(0f, 0.5f, 1f),
+            Shader.TileMode.CLAMP
+        )
+        paint.shader = glowShader
+        canvas.drawCircle(celestialX, celestialY, celestialRadius * 2.2f, paint)
 
-            val radialShader = RadialGradient(
-                cx, cy, radius,
-                intArrayOf(highlightColor, Color.TRANSPARENT),
-                floatArrayOf(0f, 1f),
-                Shader.TileMode.CLAMP
-            )
-            paint.shader = radialShader
-            paint.alpha = random.nextInt(60, 140)
-            canvas.drawCircle(cx, cy, radius, paint)
-        }
-
-        // 4. Draw Modern Generative Geometric Accents & Light Rings
         paint.shader = null
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 2.5f
+        paint.color = Color.WHITE
+        paint.alpha = 240
+        canvas.drawCircle(celestialX, celestialY, celestialRadius, paint)
 
-        val centerX = width / 2f
-        val centerY = height / 2f
-
-        for (ring in 1..4) {
-            val ringRadius = ring * (width.coerceAtMost(height) / 7f)
-            paint.color = highlightColor
-            paint.alpha = 70 - ring * 12
-            canvas.drawCircle(centerX, centerY, ringRadius, paint)
-        }
-
-        // 5. Draw Particle Constellations / Star Points
+        // 4. Starfield & Cosmic Dust
+        val random = Random(prompt.hashCode().toLong())
         paint.style = Paint.Style.FILL
-        for (i in 0..70) {
-            val px = random.nextFloat() * width
-            val py = random.nextFloat() * height
-            val pRadius = random.nextFloat() * 3f + 1f
+        for (i in 0..120) {
+            val sx = random.nextFloat() * width
+            val sy = random.nextFloat() * (height * 0.65f)
+            val sRadius = random.nextFloat() * 2.5f + 0.8f
             paint.color = Color.WHITE
-            paint.alpha = random.nextInt(100, 240)
-            canvas.drawCircle(px, py, pRadius, paint)
+            paint.alpha = random.nextInt(90, 255)
+            canvas.drawCircle(sx, sy, sRadius, paint)
         }
 
-        // 6. Draw Subtle Bottom Vignette
-        paint.shader = LinearGradient(
-            0f, height * 0.6f, 0f, height.toFloat(),
-            intArrayOf(Color.TRANSPARENT, Color.argb(190, 0, 0, 0)),
+        // 5. Cinematic Mountain Silhouettes (Back Layer)
+        paint.shader = null
+        paint.color = Color.argb(160, Color.red(c1), Color.green(c1), Color.blue(c1))
+        val backMountainPath = Path().apply {
+            moveTo(0f, height.toFloat())
+            lineTo(0f, height * 0.58f)
+            lineTo(width * 0.22f, height * 0.42f)
+            lineTo(width * 0.45f, height * 0.54f)
+            lineTo(width * 0.68f, height * 0.38f)
+            lineTo(width * 0.88f, height * 0.50f)
+            lineTo(width.toFloat(), height * 0.44f)
+            lineTo(width.toFloat(), height.toFloat())
+            close()
+        }
+        canvas.drawPath(backMountainPath, paint)
+
+        // 6. Foreground Silhouette Layer with Horizon
+        paint.color = Color.argb(245, 5, 8, 16)
+        val foreMountainPath = Path().apply {
+            moveTo(0f, height.toFloat())
+            lineTo(0f, height * 0.68f)
+            lineTo(width * 0.18f, height * 0.55f)
+            lineTo(width * 0.35f, height * 0.64f)
+            lineTo(width * 0.55f, height * 0.50f)
+            lineTo(width * 0.78f, height * 0.62f)
+            lineTo(width.toFloat(), height * 0.56f)
+            lineTo(width.toFloat(), height.toFloat())
+            close()
+        }
+        canvas.drawPath(foreMountainPath, paint)
+
+        // 7. Horizon Mist / Fog Light
+        val mistShader = LinearGradient(
+            0f, height * 0.52f, 0f, height * 0.75f,
+            intArrayOf(Color.TRANSPARENT, Color.argb(60, Color.red(highlightColor), Color.green(highlightColor), Color.blue(highlightColor)), Color.TRANSPARENT),
             null,
             Shader.TileMode.CLAMP
         )
-        canvas.drawRect(0f, height * 0.6f, width.toFloat(), height.toFloat(), paint)
+        paint.shader = mistShader
+        canvas.drawRect(0f, height * 0.52f, width.toFloat(), height * 0.75f, paint)
 
-        // 7. Watermark & Studio Badge
+        // 8. Studio Watermark Badge
         paint.shader = null
         paint.color = Color.argb(160, 255, 255, 255)
         paint.textSize = 24f
         paint.isFakeBoldText = true
-        canvas.drawText("ZYXO AI • 4K ULTRA ART STUDIO", 32f, height - 32f, paint)
+        canvas.drawText("ZYXO AI • 4K ARTWORK", 36f, height - 36f, paint)
 
-        // Encode to JPEG Base64
+        // Compress to JPEG Base64
         val outputStream = ByteArrayOutputStream()
         bitmap.compress(Bitmap.CompressFormat.JPEG, 92, outputStream)
         val byteArray = outputStream.toByteArray()
         val base64 = Base64.encodeToString(byteArray, Base64.NO_WRAP)
 
-        val description = "تصویر با کیفیت 4K با نورپردازی سینمایی و هارمونی نئونی به سبک $styleName خلق شد."
+        val description = "اثر هنری با کیفیت 4K و نورپردازی حرفه‌ای بر اساس «$prompt» خلق گردید."
         return Pair(base64, description)
     }
 }

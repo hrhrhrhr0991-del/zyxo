@@ -382,9 +382,15 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     } else {
                         // Bypass sanctions and connect directly to high-speed AI without VPN or key!
                         viewModelScope.launch {
+                            val historyList = _messages.value
+                                .filter { it.content.isNotBlank() && !it.isError }
+                                .takeLast(8)
+                                .map { it.role to it.content }
+
                             val antiSanctionResult = ZyxoAntiSanctionEngine.streamText(
                                 prompt = userText,
-                                systemPrompt = systemPrompt
+                                systemPrompt = systemPrompt,
+                                history = historyList
                             ) { chunk ->
                                 accumulatedText.append(chunk)
                                 _messages.value = _messages.value.mapIndexed { idx, msg ->
