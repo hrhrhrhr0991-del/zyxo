@@ -32,7 +32,9 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
+import com.example.util.MediaDownloader
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -547,13 +549,31 @@ fun ImageStudioScreen(
                                 ) {
                                     IconButton(
                                         onClick = {
+                                            coroutineScope.launch {
+                                                MediaDownloader.saveImageToGallery(context, uiState.generatedImageBase64, uiState.promptText)
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .background(CyanSpark, CircleShape)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Download,
+                                            contentDescription = "دانلود در گالری",
+                                            tint = Color.Black,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+
+                                    IconButton(
+                                        onClick = {
                                             clipboardManager.setText(AnnotatedString(uiState.promptText))
                                             coroutineScope.launch {
                                                 snackbarHostState.showSnackbar("پرامپت کپی شد")
                                             }
                                         },
                                         modifier = Modifier
-                                            .size(32.dp)
+                                            .size(36.dp)
                                             .background(Color.Black.copy(alpha = 0.6f), CircleShape)
                                     ) {
                                         Icon(
@@ -569,7 +589,7 @@ fun ImageStudioScreen(
                                             viewModel.setSourceImage(imageBitmap)
                                         },
                                         modifier = Modifier
-                                            .size(32.dp)
+                                            .size(36.dp)
                                             .background(Color.Black.copy(alpha = 0.6f), CircleShape)
                                     ) {
                                         Icon(
@@ -598,6 +618,34 @@ fun ImageStudioScreen(
                                     text = uiState.selectedModel,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Big prominent Download Button
+                            Button(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        MediaDownloader.saveImageToGallery(context, uiState.generatedImageBase64, uiState.promptText)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = CyanSpark),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Download,
+                                    contentDescription = null,
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "دانلود و ذخیره تصویر در گالری گوشی",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = Color.Black,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }

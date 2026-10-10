@@ -26,9 +26,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.scale
+import androidx.compose.material3.LinearProgressIndicator
+import com.example.util.MediaDownloader
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -76,6 +85,22 @@ fun VideoStudioScreen(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+
+    var isPlaying by remember { mutableStateOf(false) }
+    var playbackProgress by remember { mutableFloatStateOf(0f) }
+
+    androidx.compose.runtime.LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            while (isPlaying) {
+                playbackProgress += 0.02f
+                if (playbackProgress >= 1f) {
+                    playbackProgress = 0f
+                }
+                kotlinx.coroutines.delay(80)
+            }
+        }
+    }
 
     val videoPresets = listOf(
         "حرکت تایم‌لپس پرواز بر فراز جزایر سرسبز استوایی در آب‌های زلال هنگام طلوع خورشید، کیفیت 4K سینمایی",
@@ -472,14 +497,17 @@ fun VideoStudioScreen(
                                         )
                                     )
                                 )
-                                .border(1.dp, AmberGlow.copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
+                                .border(1.dp, AmberGlow.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                .clickable { isPlaying = !isPlaying },
                             contentAlignment = Alignment.Center
                         ) {
                             if (videoImageBitmap != null) {
                                 androidx.compose.foundation.Image(
                                     bitmap = videoImageBitmap.asImageBitmap(),
                                     contentDescription = video.prompt,
-                                    modifier = Modifier.fillMaxSize()
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .scale(if (isPlaying) 1f + (playbackProgress * 0.12f) else 1f)
                                 )
                             }
                             Column(
@@ -487,36 +515,50 @@ fun VideoStudioScreen(
                                 verticalArrangement = Arrangement.Center,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = if (videoImageBitmap != null) 0.35f else 0.0f))
+                                    .background(Color.Black.copy(alpha = if (isPlaying) 0.15f else 0.4f))
                             ) {
                                 Box(
                                     modifier = Modifier
                                         .size(56.dp)
                                         .clip(CircleShape)
-                                        .background(AmberGlow.copy(alpha = 0.8f))
+                                        .background(AmberGlow.copy(alpha = 0.9f))
                                         .border(2.dp, AmberGlow, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.PlayArrow,
-                                        contentDescription = "پخش",
+                                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = if (isPlaying) "توقف" else "پخش",
                                         tint = Color.Black,
                                         modifier = Modifier.size(32.dp)
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "رندر صحنه سینمایی Veo 3.1",
+                                    text = if (isPlaying) "در حال پخش حرکت سینمایی صحنه…" else "رندر صحنه سینمایی Veo 3.1",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "${video.resolution} • ${video.aspectRatio}",
+                                    text = "${video.resolution} • ${video.aspectRatio} • 0:0${(playbackProgress * 5).toInt()}/0:05",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = Color.White.copy(alpha = 0.9f)
                                 )
                             }
+                        }
+
+                        // Playback Scrubber Bar
+                        if (isPlaying) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            LinearProgressIndicator(
+                                progress = { playbackProgress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp)
+                                    .clip(RoundedCornerShape(2.dp)),
+                                color = AmberGlow,
+                                trackColor = Color.White.copy(alpha = 0.2f),
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(10.dp))
@@ -564,6 +606,34 @@ fun VideoStudioScreen(
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Download Video Keyframe Button
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    MediaDownloader.saveImageToGallery(context, video.operationName, video.prompt)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = AmberGlow),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = null,
+                                tint = Color.Black,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "دانلود و ذخیره تصویر ویدیویی در گالری گوشی",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = Color.Black,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }

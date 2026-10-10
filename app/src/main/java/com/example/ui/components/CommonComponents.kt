@@ -28,7 +28,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.example.util.MediaDownloader
+import kotlinx.coroutines.launch
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -327,6 +332,8 @@ fun FullScreenImageDialog(
     onEditPrompt: () -> Unit
 ) {
     val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -356,6 +363,17 @@ fun FullScreenImageDialog(
                     }
 
                     Row {
+                        IconButton(onClick = {
+                            coroutineScope.launch {
+                                MediaDownloader.saveImageToGallery(context, imageBase64, prompt)
+                            }
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = "دانلود در گالری",
+                                tint = CyanSpark
+                            )
+                        }
                         IconButton(onClick = {
                             clipboardManager.setText(AnnotatedString(prompt))
                         }) {

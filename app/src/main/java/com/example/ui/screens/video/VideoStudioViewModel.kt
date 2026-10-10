@@ -116,7 +116,7 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
 
                 // Generate real cinematic keyframe
                 val imageRes = com.example.data.engine.ZyxoAntiSanctionEngine.generateProfessionalImage(
-                    prompt = "Cinematic video still: $prompt",
+                    prompt = prompt,
                     styleName = "سینمایی و واقعی",
                     aspectRatio = aspectRatio,
                     resolution = resolution

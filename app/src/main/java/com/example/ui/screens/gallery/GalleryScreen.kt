@@ -29,8 +29,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.ui.platform.LocalContext
+import com.example.util.MediaDownloader
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -83,6 +86,7 @@ fun GalleryScreen(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -169,7 +173,12 @@ fun GalleryScreen(
                                 ImageGridItem(
                                     image = image,
                                     onClick = { viewModel.openFullscreenImage(image) },
-                                    onDelete = { viewModel.deleteImage(image) }
+                                    onDelete = { viewModel.deleteImage(image) },
+                                    onDownload = {
+                                        coroutineScope.launch {
+                                            MediaDownloader.saveImageToGallery(context, image.imageBase64, image.prompt)
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -193,6 +202,11 @@ fun GalleryScreen(
                                         clipboardManager.setText(AnnotatedString(video.prompt))
                                         coroutineScope.launch {
                                             snackbarHostState.showSnackbar("پرامپت ویدیو کپی شد")
+                                        }
+                                    },
+                                    onDownload = {
+                                        coroutineScope.launch {
+                                            MediaDownloader.saveImageToGallery(context, video.operationName, video.prompt)
                                         }
                                     }
                                 )
@@ -284,11 +298,13 @@ fun GalleryScreen(
     }
 }
 
+
 @Composable
 fun ImageGridItem(
     image: GeneratedImageEntity,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onDownload: () -> Unit
 ) {
     val bitmap = try {
         val cleanBase64 = if (image.imageBase64.contains(",")) image.imageBase64.substringAfter(",") else image.imageBase64
@@ -335,21 +351,39 @@ fun ImageGridItem(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                // Delete button
-                IconButton(
-                    onClick = onDelete,
+                // Download and Delete buttons
+                Row(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(4.dp)
-                        .size(24.dp)
-                        .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.DeleteOutline,
-                        contentDescription = "حذف",
-                        tint = Color.White,
-                        modifier = Modifier.size(14.dp)
-                    )
+                    IconButton(
+                        onClick = onDownload,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .background(CyanSpark, CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = "دانلود",
+                            tint = Color.Black,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = "حذف",
+                            tint = Color.White,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
                 }
             }
             Text(
@@ -367,7 +401,8 @@ fun ImageGridItem(
 fun VideoListItem(
     video: GeneratedVideoEntity,
     onDelete: () -> Unit,
-    onCopyPrompt: () -> Unit
+    onCopyPrompt: () -> Unit,
+    onDownload: () -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -410,7 +445,15 @@ fun VideoListItem(
                     }
                 }
 
-                Row {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    IconButton(onClick = onDownload, modifier = Modifier.size(28.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = "دانلود",
+                            tint = AmberGlow,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                     IconButton(onClick = onCopyPrompt, modifier = Modifier.size(28.dp)) {
                         Icon(
                             imageVector = Icons.Default.ContentCopy,

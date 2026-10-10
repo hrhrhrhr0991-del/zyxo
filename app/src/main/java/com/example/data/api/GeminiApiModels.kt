@@ -5,9 +5,9 @@ import com.squareup.moshi.JsonClass
 
 object GeminiModelConstants {
     // Chat & Intelligence Models
-    const val GEMINI_3_5_FLASH = "gemini-3.5-flash"
-    const val GEMINI_3_1_PRO = "gemini-3.1-pro-preview"
-    const val GEMINI_3_1_FLASH_LITE = "gemini-3.1-flash-lite-preview"
+    const val GEMINI_3_5_FLASH = "gemini-3.8-flash"
+    const val GEMINI_3_1_PRO = "gemini-3.8-flash"
+    const val GEMINI_3_1_FLASH_LITE = "gemini-3.8-flash"
 
     // Image Models
     const val GEMINI_3_1_FLASH_IMAGE = "gemini-3.1-flash-image-preview"
