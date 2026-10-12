@@ -465,10 +465,16 @@ fun VideoStudioScreen(
                 )
             } else if (uiState.lastGeneratedVideo != null) {
                 val video = uiState.lastGeneratedVideo!!
+                val rawOp = video.operationName ?: ""
+                val frames = rawOp.split("|||").filter { it.length > 50 }
+                val activeFrameIndex = if (frames.isNotEmpty()) {
+                    ((playbackProgress * frames.size).toInt()).coerceIn(0, frames.lastIndex)
+                } else 0
+                val activeBase64 = if (frames.isNotEmpty()) frames[activeFrameIndex] else rawOp
+
                 val videoImageBitmap = try {
-                    val raw = video.operationName
-                    if (!raw.isNullOrBlank() && (raw.length > 100 || raw.startsWith("/9j/") || raw.startsWith("iVBOR"))) {
-                        val clean = if (raw.contains(",")) raw.substringAfter(",") else raw
+                    if (activeBase64.isNotBlank() && (activeBase64.length > 100 || activeBase64.startsWith("/9j/") || activeBase64.startsWith("iVBOR"))) {
+                        val clean = if (activeBase64.contains(",")) activeBase64.substringAfter(",") else activeBase64
                         val bytes = android.util.Base64.decode(clean, android.util.Base64.DEFAULT)
                         android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                     } else null
@@ -507,7 +513,7 @@ fun VideoStudioScreen(
                                     contentDescription = video.prompt,
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .scale(if (isPlaying) 1f + (playbackProgress * 0.12f) else 1f)
+                                        .scale(if (isPlaying) 1f + (playbackProgress * 0.08f) else 1f)
                                 )
                             }
                             Column(
@@ -515,7 +521,7 @@ fun VideoStudioScreen(
                                 verticalArrangement = Arrangement.Center,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = if (isPlaying) 0.15f else 0.4f))
+                                    .background(Color.Black.copy(alpha = if (isPlaying) 0.12f else 0.4f))
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -534,13 +540,13 @@ fun VideoStudioScreen(
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = if (isPlaying) "در حال پخش حرکت سینمایی صحنه…" else "رندر صحنه سینمایی Veo 3.1",
+                                    text = if (isPlaying) "در حال پخش سکانس متحرک فیلم…" else "پخش سکانس متحرک Veo 3.1",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "${video.resolution} • ${video.aspectRatio} • 0:0${(playbackProgress * 5).toInt()}/0:05",
+                                    text = "${video.resolution} • ${video.aspectRatio} • فریم ${activeFrameIndex + 1}/${frames.size.coerceAtLeast(1)} • 0:0${(playbackProgress * 5).toInt()}/0:05",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = Color.White.copy(alpha = 0.9f)
                                 )
@@ -614,7 +620,7 @@ fun VideoStudioScreen(
                         Button(
                             onClick = {
                                 coroutineScope.launch {
-                                    MediaDownloader.saveImageToGallery(context, video.operationName, video.prompt)
+                                    MediaDownloader.saveImageToGallery(context, activeBase64, video.prompt)
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),

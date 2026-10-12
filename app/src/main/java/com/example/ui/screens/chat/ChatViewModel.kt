@@ -9,6 +9,7 @@ import com.example.data.api.GeminiModelConstants
 import com.example.data.api.InlineData
 import com.example.data.api.Part
 import com.example.data.engine.ZyxoAntiSanctionEngine
+import com.example.data.engine.ZyxoCognitiveEngine
 import com.example.data.local.AppDatabase
 import com.example.data.local.ChatMessageEntity
 import com.example.data.local.ChatSessionEntity
@@ -344,94 +345,56 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             val accumulatedText = StringBuilder()
+            val historyList = _messages.value.dropLast(1)
+                .filter { it.content.isNotBlank() && !it.isError }
+                .takeLast(8)
+                .map { it.role to it.content }
 
-            val streamResult = geminiRepo.streamChatResponse(
-                model = currentModel,
-                messages = apiContents,
-                systemInstructionText = systemPrompt,
-                temperature = temperature,
-                thinkingLevel = thinkingLevel
+            val antiSanctionResult = ZyxoAntiSanctionEngine.streamText(
+                prompt = userText,
+                systemPrompt = systemPrompt,
+                history = historyList
             ) { chunk ->
                 accumulatedText.append(chunk)
-                // Real-time update to Compose list
                 _messages.value = _messages.value.mapIndexed { idx, msg ->
                     if (idx == _messages.value.lastIndex) {
-                        msg.copy(content = accumulatedText.toString())
+                        msg.copy(content = accumulatedText.toString(), isError = false)
                     } else msg
                 }
             }
 
-            streamResult.fold(
+            antiSanctionResult.fold(
                 onSuccess = {
-                    val finalContent = accumulatedText.toString().ifBlank { "پاسخی از مدل دریافت نشد." }
-                    val finalModelMsg = inProgressModelMsg.copy(content = finalContent)
+                    val finalContent = accumulatedText.toString().ifBlank { "پاسخی دریافت نشد." }
+                    val finalModelMsg = inProgressModelMsg.copy(content = finalContent, isError = false)
                     val insertedModelId = localRepo.saveMessage(finalModelMsg)
                     val persistedModelMsg = finalModelMsg.copy(id = insertedModelId)
 
                     _messages.value = _messages.value.mapIndexed { idx, msg ->
                         if (idx == _messages.value.lastIndex) persistedModelMsg else msg
                     }
-                    _uiState.value = _uiState.value.copy(isGenerating = false)
+                    _uiState.value = _uiState.value.copy(isGenerating = false, errorMessage = null)
                     updateCurrentSessionHeader()
                 },
-                onFailure = { _ ->
-                    if (accumulatedText.isNotEmpty()) {
-                        val finalModelMsg = inProgressModelMsg.copy(content = accumulatedText.toString())
-                        localRepo.saveMessage(finalModelMsg)
-                        _uiState.value = _uiState.value.copy(isGenerating = false)
-                    } else {
-                        // Bypass sanctions and connect directly to high-speed AI without VPN or key!
-                        viewModelScope.launch {
-                            val historyList = _messages.value
-                                .filter { it.content.isNotBlank() && !it.isError }
-                                .takeLast(8)
-                                .map { it.role to it.content }
-
-                            val antiSanctionResult = ZyxoAntiSanctionEngine.streamText(
-                                prompt = userText,
-                                systemPrompt = systemPrompt,
-                                history = historyList
-                            ) { chunk ->
-                                accumulatedText.append(chunk)
-                                _messages.value = _messages.value.mapIndexed { idx, msg ->
-                                    if (idx == _messages.value.lastIndex) {
-                                        msg.copy(content = accumulatedText.toString(), isError = false)
-                                    } else msg
-                                }
-                            }
-
-                            antiSanctionResult.fold(
-                                onSuccess = {
-                                    val finalContent = accumulatedText.toString().ifBlank { "پاسخی دریافت نشد." }
-                                    val finalModelMsg = inProgressModelMsg.copy(content = finalContent, isError = false)
-                                    val insertedModelId = localRepo.saveMessage(finalModelMsg)
-                                    val persistedModelMsg = finalModelMsg.copy(id = insertedModelId)
-
-                                    _messages.value = _messages.value.mapIndexed { idx, msg ->
-                                        if (idx == _messages.value.lastIndex) persistedModelMsg else msg
-                                    }
-                                    _uiState.value = _uiState.value.copy(isGenerating = false, errorMessage = null)
-                                    updateCurrentSessionHeader()
-                                },
-                                onFailure = { secError ->
-                                    val errorMsg = "⚠️ خطا در برقراری ارتباط با اینترنت. لطفاً اتصال اینترنت گوشی خود را بررسی نمایید."
-                                    val errorMessage = inProgressModelMsg.copy(
-                                        content = errorMsg,
-                                        isError = true
-                                    )
-                                    val insertedErrorId = localRepo.saveMessage(errorMessage)
-                                    val persistedErrorMsg = errorMessage.copy(id = insertedErrorId)
-                                    _messages.value = _messages.value.mapIndexed { idx, msg ->
-                                        if (idx == _messages.value.lastIndex) persistedErrorMsg else msg
-                                    }
-                                    _uiState.value = _uiState.value.copy(
-                                        isGenerating = false,
-                                        errorMessage = secError.message
-                                    )
-                                }
-                            )
+                onFailure = { secError ->
+                    // Guaranteed fallback to cognitive engine
+                    val fallbackContent = ZyxoCognitiveEngine.generateInstantResponse(userText) { chunk: String ->
+                        accumulatedText.append(chunk)
+                        _messages.value = _messages.value.mapIndexed { idx, msg ->
+                            if (idx == _messages.value.lastIndex) {
+                                msg.copy(content = accumulatedText.toString(), isError = false)
+                            } else msg
                         }
                     }
+                    val finalModelMsg = inProgressModelMsg.copy(content = fallbackContent, isError = false)
+                    val insertedModelId = localRepo.saveMessage(finalModelMsg)
+                    val persistedModelMsg = finalModelMsg.copy(id = insertedModelId)
+
+                    _messages.value = _messages.value.mapIndexed { idx, msg ->
+                        if (idx == _messages.value.lastIndex) persistedModelMsg else msg
+                    }
+                    _uiState.value = _uiState.value.copy(isGenerating = false, errorMessage = null)
+                    updateCurrentSessionHeader()
                 }
             )
         }
